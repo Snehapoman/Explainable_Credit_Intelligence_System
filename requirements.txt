@@ -1,0 +1,14 @@
+streamlit
+pandas
+numpy
+scikit-learn
+xgboost
+shap
+lime
+plotly
+fastapi
+uvicorn
+python-dotenv
+yfinance
+textblob
+requests
