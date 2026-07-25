@@ -487,12 +487,17 @@ class RealTimeDataCollector:
             articles = []
             if news_data and isinstance(news_data, list):
                 for article in news_data[:10]:
+                    title = article.get('title', '')
+                    content = article.get('content', '')
+                    sentiment = TextBlob(f"{title} {content}").sentiment
                     articles.append({
-                        'title': article.get('title', ''),
-                        'content': article.get('content', ''),
+                        'title': title,
+                        'summary': content[:200] + '...' if len(content) > 200 else content,
+                        'content': content,
                         'url': article.get('link', ''),
                         'date': article.get('date', ''),
-                        'symbols': article.get('symbols', [])
+                        'symbols': article.get('symbols', []),
+                        'sentiment_polarity': sentiment.polarity
                     })
             
             # Process sentiment data
@@ -1083,9 +1088,14 @@ def create_correlation_heatmap(df):
     if len(available_columns) < 3:
         return None
     
-    # Calculate correlation matrix
+    # Calculate correlation matrix, dropping columns with zero variance
+    # (constant values make correlation 0/0 = NaN for the whole row/column)
     corr_matrix = df[available_columns].corr()
-    
+    corr_matrix = corr_matrix.dropna(axis=0, how='all').dropna(axis=1, how='all')
+
+    if len(corr_matrix.columns) < 2:
+        return None
+
     # Create heatmap with better formatting
     fig = ff.create_annotated_heatmap(
         z=corr_matrix.values,
@@ -1370,40 +1380,39 @@ def display_news_headlines(company_data):
         except (ValueError, SyntaxError):
             articles = []
     
-    if not articles or len(articles) == 0:
+    # Drop entries with no real headline instead of rendering empty cards
+    articles = [a for a in articles if isinstance(a, dict) and a.get('title', '').strip()]
+
+    if not articles:
         st.info("📰 No recent news articles available (click Refresh Data to get live news)")
         return
-    
+
     st.subheader("📰 Recent News Headlines")
-    
-    for i, article in enumerate(articles[:5]):  # Show top 5
-        if isinstance(article, dict):
-            title = article.get('title', 'No title available')
-            sentiment = article.get('sentiment_polarity', 0)
-            url = article.get('url', '#')
-            
-            # Determine sentiment class
-            if sentiment > 0.1:
-                sentiment_class = "news-sentiment-positive"
-                sentiment_icon = "😊"
-                sentiment_text = f"Positive ({sentiment:.2f})"
-            elif sentiment < -0.1:
-                sentiment_class = "news-sentiment-negative"
-                sentiment_icon = "😟"
-                sentiment_text = f"Negative ({sentiment:.2f})"
-            else:
-                sentiment_class = "news-sentiment-neutral"
-                sentiment_icon = "😐"
-                sentiment_text = f"Neutral ({sentiment:.2f})"
-            
-            st.markdown(f"""
-            <div class="{sentiment_class}">
-                <h5>{sentiment_icon} {title}</h5>
-                <p><strong>Sentiment:</strong> {sentiment_text}</p>
-            </div>
-            """, unsafe_allow_html=True)
+
+    for article in articles[:5]:  # Show top 5
+        title = article['title']
+        sentiment = article.get('sentiment_polarity', 0)
+
+        # Determine sentiment class
+        if sentiment > 0.1:
+            sentiment_class = "news-sentiment-positive"
+            sentiment_icon = "😊"
+            sentiment_text = f"Positive ({sentiment:.2f})"
+        elif sentiment < -0.1:
+            sentiment_class = "news-sentiment-negative"
+            sentiment_icon = "😟"
+            sentiment_text = f"Negative ({sentiment:.2f})"
         else:
-            st.info(f"📰 Article {i+1}: {str(article)[:100]}...")
+            sentiment_class = "news-sentiment-neutral"
+            sentiment_icon = "😐"
+            sentiment_text = f"Neutral ({sentiment:.2f})"
+
+        st.markdown(f"""
+        <div class="{sentiment_class}">
+            <h5>{sentiment_icon} {title}</h5>
+            <p><strong>Sentiment:</strong> {sentiment_text}</p>
+        </div>
+        """, unsafe_allow_html=True)
 
 def main():
     """Main dashboard application - ENHANCED with .env support"""
