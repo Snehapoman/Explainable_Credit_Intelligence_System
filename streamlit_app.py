@@ -595,7 +595,7 @@ class RealTimeDataCollector:
             info = ticker.info
             hist = ticker.history(period="5d")
             
-            if not hist.empty:
+            if not hist.empty and pd.notna(hist['Close'].iloc[-1]) and hist['Close'].iloc[-1] > 0:
                 current_price = float(hist['Close'].iloc[-1])
                 previous_close = float(hist['Close'].iloc[-2]) if len(hist) > 1 else current_price
                 price_change = current_price - previous_close
