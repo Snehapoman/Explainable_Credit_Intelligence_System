@@ -553,7 +553,7 @@ class RealTimeDataCollector:
                 total_articles += source['article_count']
                 sources_used.append(source['sentiment_source'])
             
-            weighted_sentiment = np.average(sentiments, weights=weights) if weights else np.mean(sentiments)
+            weighted_sentiment = np.average(sentiments, weights=weights) if weights and sum(weights) > 0 else np.mean(sentiments)
             
             # Combine articles
             all_articles = []
